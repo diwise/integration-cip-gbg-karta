@@ -13,10 +13,15 @@ import (
 func main() {
 	contextBrokerUrl := os.Getenv("CONTEXT_BROKER_URL")
 	pgConnUrl := os.Getenv("PG_CONNECTION_URL")
+	ctx := context.Background()
 
 	cb := application.NewContextBrokerClient(contextBrokerUrl)
-	ctx := context.Background()
-	beaches := cb.GetBeaches(ctx)
+
+	beaches, err := cb.GetBeaches(ctx)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to fetch beaches: %v\n", err)
+		os.Exit(1)
+	}
 
 	conn, err := pgx.Connect(ctx, pgConnUrl)
 	if err != nil {
