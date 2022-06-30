@@ -10,11 +10,14 @@ import (
 )
 
 func main() {
-	cb := NewContextBrokerClient("http://localhost:8082")
+	contextBrokerUrl := os.Getenv("CONTEXT_BROKER_URL")
+	pgConnUrl := os.Getenv("PG_CONNECTION_URL")
+
+	cb := NewContextBrokerClient(contextBrokerUrl)
 	ctx := context.Background()
 	beaches := cb.GetBeaches(ctx)
 
-	conn, err := pgx.Connect(ctx, os.Getenv("DATABASE_URL"))
+	conn, err := pgx.Connect(ctx, pgConnUrl)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
 		os.Exit(1)

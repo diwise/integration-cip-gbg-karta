@@ -8,6 +8,14 @@ require (
 )
 
 require (
+	github.com/mattn/go-colorable v0.1.12 // indirect
+	github.com/mattn/go-isatty v0.0.14 // indirect
+	github.com/rs/zerolog v1.27.0 // indirect
+	golang.org/x/sys v0.0.0-20220608164250-635b8c9b7f68 // indirect
+)
+
+require (
+	github.com/diwise/service-chassis v0.0.0-20220609153321-22f72f7f5e21
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
 	github.com/jackc/pgconn v1.12.1 // indirect
 	github.com/jackc/pgio v1.0.0 // indirect
