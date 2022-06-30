@@ -7,25 +7,33 @@ import (
 	"time"
 
 	"github.com/diwise/integration-cip-gbg-karta/internal/pkg/application"
+	"github.com/diwise/service-chassis/pkg/infrastructure/buildinfo"
+	"github.com/diwise/service-chassis/pkg/infrastructure/env"
+	"github.com/diwise/service-chassis/pkg/infrastructure/o11y"
 	"github.com/jackc/pgx/v4"
 )
 
 func main() {
-	contextBrokerUrl := os.Getenv("CONTEXT_BROKER_URL")
-	pgConnUrl := os.Getenv("PG_CONNECTION_URL")
-	ctx := context.Background()
+	serviceName := "integration-cip-gbg-karta"
+	serviceVersion := buildinfo.SourceVersion()
+
+	ctx, logger, cleanup := o11y.Init(context.Background(), serviceName, serviceVersion)
+	defer cleanup()
+
+	contextBrokerUrl := env.GetVariableOrDie(logger, "CONTEXT_BROKER_URL", "url to context broker")
+	pgConnUrl := env.GetVariableOrDie(logger, "PG_CONNECTION_URL", "url to postgres database, i.e. postgres://username:password@hostname:5433/database_name")
 
 	cb := application.NewContextBrokerClient(contextBrokerUrl)
 
 	beaches, err := cb.GetBeaches(ctx)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to fetch beaches: %v\n", err)
+		logger.Err(err).Msg("unable to fetch beaches")
 		os.Exit(1)
 	}
 
 	conn, err := pgx.Connect(ctx, pgConnUrl)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
+		logger.Err(err).Msg("unable to connect to database")
 		os.Exit(1)
 	}
 	defer conn.Close(ctx)
@@ -38,7 +46,7 @@ func main() {
 				return err
 			})
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Unable to update row: %v\n", err)
+				logger.Err(err).Msg("unable to update table")
 			}
 		}
 	}

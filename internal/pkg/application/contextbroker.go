@@ -84,21 +84,18 @@ func q[T any](ctx context.Context, cb contextBrokerClient, params url.Values) ([
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		fmt.Printf("failed to retrieve data from context-broker: %s", err.Error())
-		return nil, err
+		return nil, fmt.Errorf("failed to retrieve data from context-broker: %s", err.Error())
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("failed to retrieve data from context-broker, expected status code %d, but got %d", http.StatusOK, resp.StatusCode)
 		return nil, fmt.Errorf("expected status code %d, but got %d", http.StatusOK, resp.StatusCode)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Printf("failed to read response body: %s", err.Error())
-		return nil, err
+		return nil, fmt.Errorf("failed to read response body: %s", err.Error())
 	}
 
 	result := []T{}
