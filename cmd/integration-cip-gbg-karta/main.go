@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/diwise/integration-cip-gbg-karta/internal/pkg/application"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -13,7 +14,7 @@ func main() {
 	contextBrokerUrl := os.Getenv("CONTEXT_BROKER_URL")
 	pgConnUrl := os.Getenv("PG_CONNECTION_URL")
 
-	cb := NewContextBrokerClient(contextBrokerUrl)
+	cb := application.NewContextBrokerClient(contextBrokerUrl)
 	ctx := context.Background()
 	beaches := cb.GetBeaches(ctx)
 
@@ -27,10 +28,13 @@ func main() {
 	for _, b := range beaches {
 		if temp, ok := b.GetLatestTemperature(); ok {
 			err = conn.BeginFunc(ctx, func(tx pgx.Tx) error {
-				update := fmt.Sprintf("update geodata_cip.beaches set temperature=%g, timestampObservered='%s', temperatureSource='%s' where serviceGuideId='%s'", temp.Value, temp.DateObserved.Format(time.RFC3339), temp.Source, b.Source)
+				update := fmt.Sprintf("update geodata_cip.beaches set \"temperature\"='%g', \"timestampObservered\"='%s', \"temperatureSource\"='%s' where \"serviceGuideId\"='%s'", temp.Value, temp.DateObserved.Format(time.RFC3339), temp.Source, b.Source)
 				_, err = tx.Exec(ctx, update)
 				return err
 			})
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Unable to update row: %v\n", err)
+			}
 		}
 	}
 }

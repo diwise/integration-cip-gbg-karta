@@ -1,0 +1,90 @@
+version: '3'
+services:
+  context-broker:
+    image: 'ghcr.io/diwise/context-broker:prod-70a1eb2854fe304240b785a9b1ff7b9b059bc085'
+    hostname: context-broker
+    container_name: context-broker
+    expose:
+      - "8081"
+    restart: always
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: 'http://otel-collector:4318'
+    depends_on:
+      - orion-ld
+    volumes:
+      - ./configs/diwise/context-broker.yaml:/opt/diwise/config/default.yaml
+    ports:
+      - '8081:8080'
+
+  orion-ld:
+    image: 'quay.io/fiware/orion-ld@sha256:ea838e5b405170b6d42af9035a30454a21870f7f3738db73da27585bf6a478b3'
+    restart: always
+    environment:
+      ORIONLD_MONGO_HOST: 'mongodb'
+      ORIONLD_MONGO_USER: 'admin'
+      ORIONLD_MONGO_PASSWORD: 'password'
+      ORIONLD_LOG_FOR_HUMANS: 'TRUE'
+      ORIONLD_TROE:	'FALSE'
+      ORIONLD_DISABLE_FILE_LOG: 'TRUE'
+    depends_on:
+      - mongodb
+    ports:
+      - '8082:1026'
+
+  mongodb:
+    image: mongo:5
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: 'admin'
+      MONGO_INITDB_ROOT_PASSWORD: 'password'
+    ports:
+      - '27017'
+    command: --nojournal --quiet
+    volumes:
+      - mongo-db:/data
+
+  mongo-express:
+    image: mongo-express
+    restart: always
+    environment:
+      ME_CONFIG_MONGODB_SERVER: 'mongodb'
+      ME_CONFIG_MONGODB_PORT: 27017
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: 'true'
+      ME_CONFIG_MONGODB_AUTH_DATABASE: 'admin'
+      ME_CONFIG_MONGODB_ADMINUSERNAME: 'admin'
+      ME_CONFIG_MONGODB_ADMINPASSWORD: 'password'
+      ME_CONFIG_BASICAUTH_USERNAME: ''
+    depends_on:
+        - mongodb
+    ports:
+      - '8083:8081'
+
+  postgresqls:
+    container_name: "postgresqlpostgis"
+    image: "postgis/postgis"
+    ports:
+      - "5433:5432"
+    volumes:
+       - db_persdata:/var/lib/postgrespers
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: geodata_cip
+    networks:
+      - default
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin4_container
+    restart: always
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: info@masarinconsulting.se
+      PGADMIN_DEFAULT_PASSWORD: admin
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+
+volumes:
+  mongo-db: ~
+  db_persdata : {}
+  pgadmin-data:

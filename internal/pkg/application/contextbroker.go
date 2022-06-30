@@ -1,4 +1,4 @@
-package main
+package application
 
 import (
 	"context"
@@ -7,10 +7,12 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+
+	"github.com/diwise/integration-cip-gbg-karta/internal/pkg/domain"
 )
 
 type ContextBrokerClient interface {
-	GetBeaches(ctx context.Context) []Beach
+	GetBeaches(ctx context.Context) []domain.Beach
 }
 
 type contextBrokerClient struct {
@@ -19,7 +21,7 @@ type contextBrokerClient struct {
 	maxDistance       string
 }
 
-func (c contextBrokerClient) GetBeaches(ctx context.Context) []Beach {
+func (c contextBrokerClient) GetBeaches(ctx context.Context) []domain.Beach {
 	beaches := c.getBeaches(ctx)
 	for idx, b := range beaches {
 		lat, lon := b.AsPoint()
@@ -37,15 +39,15 @@ func NewContextBrokerClient(contextBrokerClientUrl string) ContextBrokerClient {
 	}
 }
 
-func (c contextBrokerClient) getBeaches(ctx context.Context) []Beach {
+func (c contextBrokerClient) getBeaches(ctx context.Context) []domain.Beach {
 	params := url.Values{}
 	params.Add("type", "Beach")
 
-	r, _ := q[Beach](ctx, c, params)
+	r, _ := q[domain.Beach](ctx, c, params)
 	return r
 }
 
-func (c contextBrokerClient) getWaterQualityObserved(ctx context.Context, latitude, longitude float64) []WaterQualityObserved {
+func (c contextBrokerClient) getWaterQualityObserved(ctx context.Context, latitude, longitude float64) []domain.WaterQualityObserved {
 	params := url.Values{}
 	params.Add("type", "WaterQualityObserved")
 	params.Add("geoproperty", "location")
@@ -53,7 +55,7 @@ func (c contextBrokerClient) getWaterQualityObserved(ctx context.Context, latitu
 	params.Add("geometry", "Point")
 	params.Add("coordinates", fmt.Sprintf("[%g,%g]", latitude, longitude))
 
-	r, _ := q[WaterQualityObserved](ctx, c, params)
+	r, _ := q[domain.WaterQualityObserved](ctx, c, params)
 	return r
 }
 
