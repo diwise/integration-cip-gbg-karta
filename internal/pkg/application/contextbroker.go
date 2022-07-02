@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/diwise/context-broker/pkg/ngsild/types/entities"
 	"github.com/diwise/integration-cip-gbg-karta/internal/pkg/domain"
 )
 
@@ -41,7 +42,7 @@ func NewContextBrokerClient(contextBrokerClientUrl string) ContextBrokerClient {
 	return &contextBrokerClient{
 		contextBrokerUrl:  contextBrokerClientUrl,
 		maxDistance:       "1000",
-		defaultContextURL: "https://raw.githubusercontent.com/diwise/context-broker/main/assets/jsonldcontexts/default-context.jsonld",
+		defaultContextURL: entities.DefaultContextURL,
 	}
 }
 

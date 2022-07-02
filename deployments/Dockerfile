@@ -23,7 +23,6 @@ COPY --from=builder --chown=1001 /app/cmd/integration-cip-gbg-karta/integration-
 
 RUN chown 1001 /opt/diwise
 
-EXPOSE 8080
 USER 1001
 
 ENTRYPOINT ["/opt/diwise/integration-cip-gbg-karta"]

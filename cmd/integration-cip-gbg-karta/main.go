@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/diwise/integration-cip-gbg-karta/internal/pkg/application"
@@ -13,8 +12,9 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
+const serviceName string = "integration-cip-gbg-karta"
+
 func main() {
-	serviceName := "integration-cip-gbg-karta"
 	serviceVersion := buildinfo.SourceVersion()
 
 	ctx, logger, cleanup := o11y.Init(context.Background(), serviceName, serviceVersion)
@@ -27,14 +27,12 @@ func main() {
 
 	beaches, err := cb.GetBeaches(ctx)
 	if err != nil {
-		logger.Err(err).Msg("unable to fetch beaches")
-		os.Exit(1)
+		logger.Fatal().Err(err).Msg("unable to fetch beaches")
 	}
 
 	conn, err := pgx.Connect(ctx, pgConnUrl)
 	if err != nil {
-		logger.Err(err).Msg("unable to connect to database")
-		os.Exit(1)
+		logger.Fatal().Err(err).Msg("unable to connect to database")
 	}
 	defer conn.Close(ctx)
 
@@ -46,7 +44,7 @@ func main() {
 				return err
 			})
 			if err != nil {
-				logger.Err(err).Msg("unable to update table")
+				logger.Error().Err(err).Msg("unable to update table")
 			}
 		}
 	}

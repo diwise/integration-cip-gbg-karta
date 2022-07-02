@@ -62,6 +62,8 @@ github.com/creack/pty v1.1.7/go.mod h1:lj5s0c3V2DBrqTV7llrYr5NG6My20zk30Fl46Y7Do
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+github.com/diwise/context-broker v0.0.0-20220630194749-9dc18eac8779 h1:tQ3YJxFovMhEud1Gg6T21PE8n1LJ6xBXf8rxsbXYagQ=
+github.com/diwise/context-broker v0.0.0-20220630194749-9dc18eac8779/go.mod h1:hEIWELN892bPSYGSOfxtUHOJ4FZJ056+K8Pxrqp5i0I=
 github.com/diwise/service-chassis v0.0.0-20220609153321-22f72f7f5e21 h1:slCX3+Ni152fJdkiyGe2sjxzu9TvClfmQZ3JV+lXFmQ=
 github.com/diwise/service-chassis v0.0.0-20220609153321-22f72f7f5e21/go.mod h1:qx+MPhTkgmRCAAaqX66aaglFZHMA8/JoAHbT4dYJuGA=
 github.com/envoyproxy/go-control-plane v0.9.0/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
