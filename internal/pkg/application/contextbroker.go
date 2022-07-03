@@ -10,6 +10,7 @@ import (
 
 	"github.com/diwise/context-broker/pkg/ngsild/types/entities"
 	"github.com/diwise/integration-cip-gbg-karta/internal/pkg/domain"
+	"github.com/diwise/service-chassis/pkg/infrastructure/o11y/logging"
 )
 
 type ContextBrokerClient interface {
@@ -29,9 +30,11 @@ func (c contextBrokerClient) GetBeaches(ctx context.Context) ([]domain.Beach, er
 	}
 
 	for idx, b := range beaches {
-		lat, lon := b.AsPoint()
+		lon, lat := b.AsPoint()
 		if wqo, err := c.getWaterQualityObserved(ctx, lat, lon); err == nil {
 			beaches[idx].WaterQualityObserved = wqo
+			log := logging.GetFromContext(ctx)
+			log.Info().Msgf("retrieved %d wqos for beach", len(wqo))
 		}
 	}
 
@@ -60,7 +63,8 @@ func (c contextBrokerClient) getWaterQualityObserved(ctx context.Context, latitu
 	params.Add("geoproperty", "location")
 	params.Add("georel", fmt.Sprintf("near;maxDistance==%s", c.maxDistance))
 	params.Add("geometry", "Point")
-	params.Add("coordinates", fmt.Sprintf("[%g,%g]", latitude, longitude))
+	params.Add("coordinates", fmt.Sprintf("[%g,%g]", longitude, latitude))
+	params.Add("limit", "1000")
 
 	r, err := q[domain.WaterQualityObserved](ctx, c, params)
 	return r, err

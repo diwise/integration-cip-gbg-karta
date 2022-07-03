@@ -30,6 +30,8 @@ func main() {
 		logger.Fatal().Err(err).Msg("unable to fetch beaches")
 	}
 
+	logger.Info().Msgf("fetched %d beaches from %s", len(beaches), contextBrokerUrl)
+
 	conn, err := pgx.Connect(ctx, pgConnUrl)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("unable to connect to database")
@@ -53,6 +55,8 @@ func main() {
 			if err != nil {
 				logger.Error().Err(err).Msg("unable to update table")
 			}
+		} else {
+			logger.Warn().Msgf("no valid temperature value found for %s", b.Source)
 		}
 	}
 
