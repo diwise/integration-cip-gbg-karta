@@ -39,15 +39,37 @@ func main() {
 	for _, b := range beaches {
 		if temp, ok := b.GetLatestTemperature(); ok {
 			err = conn.BeginFunc(ctx, func(tx pgx.Tx) error {
-				update := fmt.Sprintf("update geodata_cip.beaches set \"temperature\"='%g', \"timestampObservered\"='%s', \"temperatureSource\"='%s' where \"serviceGuideId\"='%s'", temp.Value, temp.DateObserved.Format(time.RFC3339), temp.Source, b.Source)
+				dateStr, timeStr := ToSwedishDateAndTime(temp.DateObserved)
+				update := fmt.Sprintf("update geodata_cip.beaches set \"temperature\"='%g', \"timestampObservered\"='%s', \"temperatureSource\"='%s' where \"serviceGuideId\"='%s'", temp.Value, timeStr+" den "+dateStr, temp.Source, b.Source)
 				_, err = tx.Exec(ctx, update)
-				return err
+				if err != nil {
+					return err
+				}
+
+				logger.Info().Msgf("updated temperature value for %s", b.Source)
+
+				return nil
 			})
 			if err != nil {
 				logger.Error().Err(err).Msg("unable to update table")
 			}
 		}
 	}
+
+	logger.Info().Msg("done")
+}
+
+var months []string = []string{
+	"januari", "februari", "mars", "april", "maj", "juni",
+	"juli", "augusti", "september", "oktober", "november", "december",
+}
+
+func ToSwedishDateAndTime(t time.Time) (string, string) {
+	cest := t.Add(2 * time.Hour)
+
+	dateStr := fmt.Sprintf("%d %s %d", cest.Day(), months[cest.Month()-1], cest.Year())
+
+	return dateStr, cest.Format("15.04")
 }
 
 /*
