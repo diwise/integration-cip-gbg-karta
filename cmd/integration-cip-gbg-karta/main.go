@@ -39,7 +39,7 @@ func main() {
 	defer conn.Close(ctx)
 
 	for _, b := range beaches {
-		if temp, ok := b.GetLatestTemperature(); ok {
+		if temp, ok := b.GetLatestTemperature(ctx); ok {
 			err = conn.BeginFunc(ctx, func(tx pgx.Tx) error {
 				dateStr, timeStr := ToSwedishDateAndTime(temp.DateObserved)
 				update := fmt.Sprintf("update geodata_cip.beaches set \"temperature\"='%g', \"timestampObservered\"='%s', \"temperatureSource\"='%s' where \"serviceGuideId\"='%s'", temp.Value, timeStr+" den "+dateStr, temp.Source, b.Source)
@@ -48,7 +48,7 @@ func main() {
 					return err
 				}
 
-				logger.Info().Msgf("updated temperature value for %s", b.Source)
+				logger.Info().Msgf("updated temperature value for %s (%s)", b.Name, b.Source)
 
 				return nil
 			})
@@ -56,7 +56,7 @@ func main() {
 				logger.Error().Err(err).Msg("unable to update table")
 			}
 		} else {
-			logger.Warn().Msgf("no valid temperature value found for %s", b.Source)
+			logger.Warn().Msgf("no valid temperature value found for %s (%s)", b.Name, b.Source)
 		}
 	}
 

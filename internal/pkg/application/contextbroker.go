@@ -44,7 +44,7 @@ func (c contextBrokerClient) GetBeaches(ctx context.Context) ([]domain.Beach, er
 func NewContextBrokerClient(contextBrokerClientUrl string) ContextBrokerClient {
 	return &contextBrokerClient{
 		contextBrokerUrl:  contextBrokerClientUrl,
-		maxDistance:       "1000",
+		maxDistance:       "500",
 		defaultContextURL: entities.DefaultContextURL,
 	}
 }

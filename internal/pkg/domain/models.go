@@ -1,9 +1,13 @@
 package domain
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type Beach struct {
 	Id       string `json:"id"`
+	Name     string `json:"name"`
 	Source   string `json:"source"`
 	Location struct {
 		Coordinates [][][][]float64 `json:"coordinates"`
@@ -26,6 +30,7 @@ func (b Beach) LatestTO(filter func(w WaterQualityObserved) bool) (TemperatureOb
 		for idx, x := range ts {
 			if x.DateObserved.After(d) {
 				t = ts[idx]
+				d = ts[idx].DateObserved
 			}
 		}
 
@@ -34,7 +39,8 @@ func (b Beach) LatestTO(filter func(w WaterQualityObserved) bool) (TemperatureOb
 	return TemperatureObserved{}, false
 }
 
-func (b Beach) GetLatestTemperature() (*TemperatureObserved, bool) {
+func (b Beach) GetLatestTemperature(ctx context.Context) (*TemperatureObserved, bool) {
+
 	if sensorTemp, ok := b.LatestTO(func(w WaterQualityObserved) bool { return w.IsSensor() }); ok {
 		if !sensorTemp.IsOlderThan(4) {
 			return &sensorTemp, true
@@ -65,7 +71,7 @@ func (b Beach) getTemperatures(filter func(w WaterQualityObserved) bool) []Tempe
 			to := &TemperatureObserved{
 				Value:        t,
 				DateObserved: d,
-				Source: w.Source,
+				Source:       w.Source,
 			}
 			temperatures = append(temperatures, *to)
 		}
