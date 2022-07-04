@@ -34,7 +34,7 @@ func (c contextBrokerClient) GetBeaches(ctx context.Context) ([]domain.Beach, er
 		if wqo, err := c.getWaterQualityObserved(ctx, lat, lon); err == nil {
 			beaches[idx].WaterQualityObserved = wqo
 			log := logging.GetFromContext(ctx)
-			log.Info().Msgf("retrieved %d wqos for beach", len(wqo))
+			log.Info().Msgf("found %d wqos near beach %s", len(wqo), b.Name)
 		}
 	}
 
@@ -76,6 +76,9 @@ func q[T any](ctx context.Context, cb contextBrokerClient, params url.Values) ([
 	params.Add("options", "keyValues")
 
 	reqUrl := fmt.Sprintf("%s/%s?%s", cb.contextBrokerUrl, "ngsi-ld/v1/entities", params.Encode())
+
+	log := logging.GetFromContext(ctx)
+	log.Debug().Msgf("calling %s", reqUrl)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqUrl, nil)
 	if err != nil {
