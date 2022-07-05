@@ -52,6 +52,7 @@ func NewContextBrokerClient(contextBrokerClientUrl string) ContextBrokerClient {
 func (c contextBrokerClient) getBeaches(ctx context.Context) ([]domain.Beach, error) {
 	params := url.Values{}
 	params.Add("type", "Beach")
+	params.Add("limit", "50")
 
 	r, err := q[domain.Beach](ctx, c, params)
 	return r, err
