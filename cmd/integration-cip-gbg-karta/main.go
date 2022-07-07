@@ -42,6 +42,7 @@ func main() {
 		if temp, ok := b.GetLatestTemperature(ctx); ok {
 			err = conn.BeginFunc(ctx, func(tx pgx.Tx) error {
 				//dateStr, timeStr := ToSwedishDateAndTime(temp.DateObserved)
+
 				update := fmt.Sprintf("update geodata_cip.beaches set \"temperature\"='%0.1f', \"timestampObservered\"='%s', \"temperatureSource\"='%s' where \"serviceGuideId\"='%s'", temp.Value, temp.DateObserved.Format(time.RFC3339), temp.Source, b.Source)
 				_, err = tx.Exec(ctx, update)
 				if err != nil {

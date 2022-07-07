@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"strings"
 	"time"
 )
 
@@ -43,6 +44,9 @@ func (b Beach) GetLatestTemperature(ctx context.Context) (*TemperatureObserved, 
 
 	if sensorTemp, ok := b.LatestTO(func(w WaterQualityObserved) bool { return w.IsSensor() }); ok {
 		if !sensorTemp.IsOlderThan(4) {
+			if sensorTemp.Source == "" {
+				sensorTemp.Source = "Göteborgs Stad"
+			}
 			return &sensorTemp, true
 		}
 	}
@@ -54,7 +58,7 @@ func (b Beach) GetLatestTemperature(ctx context.Context) (*TemperatureObserved, 
 	}
 
 	if sampleTemp, ok := b.LatestTO(func(w WaterQualityObserved) bool { return w.IsSampleTemp() }); ok {
-		if !sampleTemp.IsOlderThan(12) {
+		if !sampleTemp.IsOlderThan(24) {
 			return &sampleTemp, true
 		}
 	}
@@ -97,11 +101,11 @@ func (w WaterQualityObserved) Time() time.Time {
 }
 
 func (w WaterQualityObserved) IsCopernicus() bool {
-	return w.Source == "https://www.smhi.se/"
+	return strings.HasPrefix(w.Source, "https://www.smhi.se")
 }
 
 func (w WaterQualityObserved) IsSampleTemp() bool {
-	return w.Source == "https://badplatsen.havochvatten.se/badplatsen/api"
+	return strings.HasPrefix(w.Source, "https://badplatsen.havochvatten.se")
 }
 
 func (w WaterQualityObserved) IsSensor() bool {
