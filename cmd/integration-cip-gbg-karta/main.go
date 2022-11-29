@@ -29,12 +29,11 @@ func main() {
 
 	cb := application.NewContextBrokerClient(contextBrokerUrl)
 
-	flag.StringVar(&bcSelector, "bcSelector", "greenspacerecord", "Flag to distinguish which funcion to be selected for its business case")
+	flag.StringVar(&bcSelector, "bcSelector", "beach", "Flag to distinguish which funcion to be selected for its business case")
 	conn, err := pgx.Connect(ctx, pgConnUrl)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("unable to connect to database")
 	}
-	//	var conn *pgx.Conn
 
 	defer conn.Close(ctx)
 
@@ -46,8 +45,10 @@ func main() {
 	} else if bcSelector == "greenspacerecord" {
 		err := bcGreenspaceRecord(ctx, cb, logger, contextBrokerUrl, *conn)
 		if err != nil {
-			logger.Error().Err(err).Msg("error in bcWaterQualityObserved")
+			logger.Error().Err(err).Msg("error in bcGreenspaceRecord")
 		}
+	} else {
+		logger.Error().Err(err).Msg("no configuration found for %s" + bcSelector)
 	}
 
 	logger.Info().Msg("done")
@@ -106,7 +107,7 @@ func bcGreenspaceRecord(ctx context.Context, cb application.ContextBrokerClient,
 				return err
 			}
 
-			logger.Info().Msgf("updated soilmoisture pressure value for %s (%s)", lon, lat)
+			logger.Info().Msgf("updated soilmoisture pressure value for %f %f", lon, lat)
 
 			return nil
 		})

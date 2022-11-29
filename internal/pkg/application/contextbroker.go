@@ -45,11 +45,12 @@ func (c contextBrokerClient) GetBeaches(ctx context.Context) ([]domain.Beach, er
 func (c contextBrokerClient) GetGreenspaceRecords(ctx context.Context) ([]domain.GreenspaceRecord, error) {
 	gr, err := c.getGreenspaceRecords(ctx)
 	if err != nil {
+		return nil, err
+	} else {
 		log := logging.GetFromContext(ctx)
 		log.Info().Msgf("found %d GreenspaceRecords", len(gr))
+		return gr, nil
 	}
-
-	return gr, nil
 }
 
 func NewContextBrokerClient(contextBrokerClientUrl string) ContextBrokerClient {
