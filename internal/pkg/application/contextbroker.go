@@ -15,6 +15,7 @@ import (
 
 type ContextBrokerClient interface {
 	GetBeaches(ctx context.Context) ([]domain.Beach, error)
+	GetGreenspaceRecords(ctx context.Context) ([]domain.GreenspaceRecord, error)
 }
 
 type contextBrokerClient struct {
@@ -39,6 +40,16 @@ func (c contextBrokerClient) GetBeaches(ctx context.Context) ([]domain.Beach, er
 	}
 
 	return beaches, nil
+}
+
+func (c contextBrokerClient) GetGreenspaceRecords(ctx context.Context) ([]domain.GreenspaceRecord, error) {
+	gr, err := c.getGreenspaceRecords(ctx)
+	if err != nil {
+		log := logging.GetFromContext(ctx)
+		log.Info().Msgf("found %d GreenspaceRecords", len(gr))
+	}
+
+	return gr, nil
 }
 
 func NewContextBrokerClient(contextBrokerClientUrl string) ContextBrokerClient {
@@ -68,6 +79,15 @@ func (c contextBrokerClient) getWaterQualityObserved(ctx context.Context, latitu
 	params.Add("limit", "1000")
 
 	r, err := q[domain.WaterQualityObserved](ctx, c, params)
+	return r, err
+}
+
+func (c contextBrokerClient) getGreenspaceRecords(ctx context.Context) ([]domain.GreenspaceRecord, error) {
+	params := url.Values{}
+	params.Add("type", "GreenspaceRecord")
+	params.Add("limit", "1000")
+
+	r, err := q[domain.GreenspaceRecord](ctx, c, params)
 	return r, err
 }
 
