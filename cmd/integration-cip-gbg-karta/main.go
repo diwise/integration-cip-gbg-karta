@@ -48,7 +48,7 @@ func main() {
 			logger.Error().Err(err).Msg("error in bcGreenspaceRecord")
 		}
 	} else {
-		logger.Fatal().Err(err).Msgf("%s is not a supported business case", bcSelector)
+		logger.Fatal().Msgf("%s is not a supported business case", bcSelector)
 	}
 
 	logger.Info().Msg("done")
