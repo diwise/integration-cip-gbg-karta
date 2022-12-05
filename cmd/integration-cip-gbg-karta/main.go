@@ -48,7 +48,7 @@ func main() {
 			logger.Error().Err(err).Msg("error in bcGreenspaceRecord")
 		}
 	} else {
-		logger.Fatal().Err(err).Msg("%s is not a supported business case" + bcSelector)
+		logger.Fatal().Err(err).Msgf("%s is not a supported business case" + bcSelector)
 	}
 
 	logger.Info().Msg("done")
@@ -108,7 +108,7 @@ func bcGreenspaceRecord(ctx context.Context, cb application.ContextBrokerClient,
 				return err
 			}
 
-			logger.Info().Msgf("updated soilmoisture pressure into geodata_markfukt.greenspacerecord")
+			logger.Info().Msg("updated soilmoisture pressure into geodata_markfukt.greenspacerecord")
 
 			return nil
 		})
