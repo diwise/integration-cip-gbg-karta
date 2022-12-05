@@ -48,7 +48,7 @@ func main() {
 			logger.Error().Err(err).Msg("error in bcGreenspaceRecord")
 		}
 	} else {
-		logger.Error().Err(err).Msg("no configuration found for %s" + bcSelector)
+		logger.Fatal().Err(err).Msg("%s is not a supported business case" + bcSelector)
 	}
 
 	logger.Info().Msg("done")
@@ -91,7 +91,8 @@ func bcWaterQualityObserved(ctx context.Context, cb application.ContextBrokerCli
 func bcGreenspaceRecord(ctx context.Context, cb application.ContextBrokerClient, logger zerolog.Logger, contextBrokerUrl string, conn pgx.Conn) error {
 	greenspaces, err := cb.GetGreenspaceRecords(ctx)
 	if err != nil {
-		logger.Fatal().Err(err).Msg("unable to fetch greenspacerecords")
+		logger.Error().Err(err).Msg("no greenspacerecords fetched")
+		return nil
 	}
 
 	logger.Info().Msgf("fetched %d greenspacerecords from %s", len(greenspaces), contextBrokerUrl)
@@ -107,7 +108,7 @@ func bcGreenspaceRecord(ctx context.Context, cb application.ContextBrokerClient,
 				return err
 			}
 
-			logger.Info().Msgf("updated soilmoisture pressure value for %f %f", lon, lat)
+			logger.Info().Msgf("updated soilmoisture pressure into geodata_markfukt.greenspacerecord")
 
 			return nil
 		})
