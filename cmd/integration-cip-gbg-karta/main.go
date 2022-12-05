@@ -29,7 +29,9 @@ func main() {
 
 	cb := application.NewContextBrokerClient(contextBrokerUrl)
 
-	flag.StringVar(&bcSelector, "bcSelector", "beach", "Flag to distinguish which funcion to be selected for its business case")
+	flag.StringVar(&bcSelector, "bc", "beach", "Flag to distinguish which funcion to be selected for its business case")
+	flag.Parse()
+
 	conn, err := pgx.Connect(ctx, pgConnUrl)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("unable to connect to database")
