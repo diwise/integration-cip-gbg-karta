@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"time"
 
@@ -10,9 +11,12 @@ import (
 	"github.com/diwise/service-chassis/pkg/infrastructure/env"
 	"github.com/diwise/service-chassis/pkg/infrastructure/o11y"
 	"github.com/jackc/pgx/v4"
+	"github.com/rs/zerolog"
 )
 
 const serviceName string = "integration-cip-gbg-karta"
+
+var bcSelector string
 
 func main() {
 	serviceVersion := buildinfo.SourceVersion()
@@ -25,18 +29,38 @@ func main() {
 
 	cb := application.NewContextBrokerClient(contextBrokerUrl)
 
+	flag.StringVar(&bcSelector, "bcSelector", "beach", "Flag to distinguish which funcion to be selected for its business case")
+	conn, err := pgx.Connect(ctx, pgConnUrl)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("unable to connect to database")
+	}
+
+	defer conn.Close(ctx)
+
+	if bcSelector == "beach" {
+		err := bcWaterQualityObserved(ctx, cb, logger, contextBrokerUrl, *conn)
+		if err != nil {
+			logger.Error().Err(err).Msg("error in bcWaterQualityObserved")
+		}
+	} else if bcSelector == "greenspacerecord" {
+		err := bcGreenspaceRecord(ctx, cb, logger, contextBrokerUrl, *conn)
+		if err != nil {
+			logger.Error().Err(err).Msg("error in bcGreenspaceRecord")
+		}
+	} else {
+		logger.Fatal().Err(err).Msgf("%s is not a supported business case", bcSelector)
+	}
+
+	logger.Info().Msg("done")
+}
+
+func bcWaterQualityObserved(ctx context.Context, cb application.ContextBrokerClient, logger zerolog.Logger, contextBrokerUrl string, conn pgx.Conn) error {
 	beaches, err := cb.GetBeaches(ctx)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("unable to fetch beaches")
 	}
 
 	logger.Info().Msgf("fetched %d beaches from %s", len(beaches), contextBrokerUrl)
-
-	conn, err := pgx.Connect(ctx, pgConnUrl)
-	if err != nil {
-		logger.Fatal().Err(err).Msg("unable to connect to database")
-	}
-	defer conn.Close(ctx)
 
 	for _, b := range beaches {
 		if temp, ok := b.GetLatestTemperature(ctx); ok {
@@ -61,7 +85,39 @@ func main() {
 		}
 	}
 
-	logger.Info().Msg("done")
+	return err
+}
+
+func bcGreenspaceRecord(ctx context.Context, cb application.ContextBrokerClient, logger zerolog.Logger, contextBrokerUrl string, conn pgx.Conn) error {
+	greenspaces, err := cb.GetGreenspaceRecords(ctx)
+	if err != nil {
+		logger.Error().Err(err).Msg("no greenspacerecords fetched")
+		return nil
+	}
+
+	logger.Info().Msgf("fetched %d greenspacerecords from %s", len(greenspaces), contextBrokerUrl)
+
+	for _, g := range greenspaces {
+		err = conn.BeginFunc(ctx, func(tx pgx.Tx) error {
+			lon := g.Location.Coordinates[0]
+			lat := g.Location.Coordinates[1]
+			update := fmt.Sprintf("insert into geodata_markfukt.greenspacerecord (\"id\", \"location\", \"soilMoisturePressure\", \"dateObservered\", \"source\") VALUES ('%s',  ST_MakePoint(%f,%f), %d, '%s', '%s')", g.Id, lon, lat, g.SoilMoisturePressure, g.DateObserved.Value, "Göteborg stads park- och naturnämnd")
+
+			_, err = tx.Exec(ctx, update)
+			if err != nil {
+				return err
+			}
+
+			logger.Info().Msg("updated soilmoisture pressure into geodata_markfukt.greenspacerecord")
+
+			return nil
+		})
+		if err != nil {
+			logger.Error().Err(err).Msg("unable to update table")
+		}
+	}
+	return err
+
 }
 
 var months []string = []string{
