@@ -103,19 +103,19 @@ func bcGreenspaceRecord(ctx context.Context, cb application.ContextBrokerClient,
 		err = conn.BeginFunc(ctx, func(tx pgx.Tx) error {
 			lon := g.Location.Coordinates[0]
 			lat := g.Location.Coordinates[1]
-			update := fmt.Sprintf("insert into geodata_markfukt.greenspacerecord (\"id\", \"location\", \"soilMoisturePressure\", \"dateObservered\", \"source\") VALUES ('%s',  ST_MakePoint(%f,%f), %d, '%s', '%s')", g.Id, lon, lat, g.SoilMoisturePressure, g.DateObserved.Value, "Göteborg stads park- och naturnämnd")
+			insert := fmt.Sprintf("insert into geodata_markfukt.greenspacerecord (\"id\", \"location\", \"soilMoisturePressure\", \"dateObservered\", \"source\") VALUES ('%s',  ST_MakePoint(%f,%f), %d, '%s', '%s') ON CONFLICT DO NOTHING;", g.Id, lon, lat, g.SoilMoisturePressure, g.DateObserved.Value, "Göteborg stads park- och naturnämnd")
 
-			_, err = tx.Exec(ctx, update)
+			_, err = tx.Exec(ctx, insert)
 			if err != nil {
 				return err
 			}
 
-			logger.Info().Msg("updated soilmoisture pressure into geodata_markfukt.greenspacerecord")
+			logger.Info().Msg("inserted soilmoisture pressure into geodata_markfukt.greenspacerecord")
 
 			return nil
 		})
 		if err != nil {
-			logger.Error().Err(err).Msg("unable to update table")
+			logger.Error().Err(err).Msg("unable to insert into table")
 		}
 	}
 	return err
