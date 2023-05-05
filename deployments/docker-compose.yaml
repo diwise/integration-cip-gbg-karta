@@ -1,38 +1,46 @@
 version: '3'
 services:
-  context-broker:
-    image: 'ghcr.io/diwise/context-broker:prod-70a1eb2854fe304240b785a9b1ff7b9b059bc085'
-    hostname: context-broker
-    container_name: context-broker
-    expose:
-      - "8081"
-    restart: always
-    environment:
-      OTEL_EXPORTER_OTLP_ENDPOINT: 'http://otel-collector:4318'
-    depends_on:
-      - orion-ld
-    volumes:
-      - ./configs/diwise/context-broker.yaml:/opt/diwise/config/default.yaml
-    ports:
-      - '8081:8080'
-
   orion-ld:
-    image: 'quay.io/fiware/orion-ld@sha256:ea838e5b405170b6d42af9035a30454a21870f7f3738db73da27585bf6a478b3'
+    image: 'quay.io/fiware/orion-ld@sha256:a65adbface4d5467add735d01c7204951e3c474ef8fc901fbd3a2af285beafea'
     restart: always
     environment:
       ORIONLD_MONGO_HOST: 'mongodb'
       ORIONLD_MONGO_USER: 'admin'
       ORIONLD_MONGO_PASSWORD: 'password'
+      ORIONLD_TROE: 'TRUE'
+      ORIONLD_TROE_USER: 'orion'
+      ORIONLD_TROE_PWD: 'orion'
+      ORIONLD_TROE_HOST: 'timescale'
       ORIONLD_LOG_FOR_HUMANS: 'TRUE'
-      ORIONLD_TROE:	'FALSE'
       ORIONLD_DISABLE_FILE_LOG: 'TRUE'
     depends_on:
       - mongodb
     ports:
       - '8082:1026'
+  timescale:
+    image: timescaledev/timescaledb-ha:pg14-multi-all
+    restart: always
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U orion" ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    environment:
+      POSTGRES_USER: 'orion'
+      POSTGRES_PASSWORD: 'orion'
+      POSTGRES_HOST_AUTH_METHOD: 'trust'
+    ports:
+      - "5432"
 
   mongodb:
     image: mongo:5
+    healthcheck:
+      test: ["CMD-SHELL", "mongo", "--port", "27017", "-u", "admin", "-p", "password", "--eval", "\"db.adminCommand('ping')\""]
+      interval: 5s
+      timeout: 1s
+      retries: 12
+      start_period: 10s
     environment:
       MONGO_INITDB_ROOT_USERNAME: 'admin'
       MONGO_INITDB_ROOT_PASSWORD: 'password'
@@ -54,9 +62,10 @@ services:
       ME_CONFIG_MONGODB_ADMINPASSWORD: 'password'
       ME_CONFIG_BASICAUTH_USERNAME: ''
     depends_on:
-        - mongodb
+      orion-ld:
+        condition: service_healthy
     ports:
-      - '8083:8081'
+      - '8183:8081'
 
   postgresqls:
     container_name: "postgresqlpostgis"

@@ -6,19 +6,23 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/diwise/integration-cip-gbg-karta/internal/pkg/application"
+	"github.com/diwise/integration-cip-gbg-karta/internal/pkg/cip"
+	"github.com/diwise/integration-cip-gbg-karta/internal/pkg/models"
 	"github.com/diwise/service-chassis/pkg/infrastructure/buildinfo"
 	"github.com/diwise/service-chassis/pkg/infrastructure/env"
 	"github.com/diwise/service-chassis/pkg/infrastructure/o11y"
+	"github.com/diwise/service-chassis/pkg/infrastructure/o11y/logging"
 	"github.com/jackc/pgx/v4"
-	"github.com/rs/zerolog"
 )
 
 const serviceName string = "integration-cip-gbg-karta"
 
 var bcSelector string
+var maxDistance string
 
 func main() {
+	var err error
+
 	serviceVersion := buildinfo.SourceVersion()
 
 	ctx, logger, cleanup := o11y.Init(context.Background(), serviceName, serviceVersion)
@@ -27,71 +31,84 @@ func main() {
 	contextBrokerUrl := env.GetVariableOrDie(logger, "CONTEXT_BROKER_URL", "url to context broker")
 	pgConnUrl := env.GetVariableOrDie(logger, "PG_CONNECTION_URL", "url to postgres database, i.e. postgres://username:password@hostname:5433/database_name")
 
-	cb := application.NewContextBrokerClient(contextBrokerUrl)
-
-	flag.StringVar(&bcSelector, "bc", "beach", "Flag to distinguish which funcion to be selected for its business case")
+	flag.StringVar(&bcSelector, "bc", "beach", "selected business case [beach or greenspacerecord]")
+	flag.StringVar(&maxDistance, "distance", "500", "max distance between beach and temperature measurement, default 500m")
 	flag.Parse()
 
 	conn, err := pgx.Connect(ctx, pgConnUrl)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("unable to connect to database")
 	}
-
 	defer conn.Close(ctx)
 
-	if bcSelector == "beach" {
-		err := bcWaterQualityObserved(ctx, cb, logger, contextBrokerUrl, *conn)
-		if err != nil {
-			logger.Error().Err(err).Msg("error in bcWaterQualityObserved")
-		}
-	} else if bcSelector == "greenspacerecord" {
-		err := bcGreenspaceRecord(ctx, cb, logger, contextBrokerUrl, *conn)
-		if err != nil {
-			logger.Error().Err(err).Msg("error in bcGreenspaceRecord")
-		}
-	} else {
+	switch bcSelector {
+	case "beach":
+		err = bcWaterQualityObserved(ctx, contextBrokerUrl, maxDistance, *conn)
+	case "greenspacerecord":
+		err = bcGreenspaceRecord(ctx, contextBrokerUrl, *conn)
+	default:
 		logger.Fatal().Msgf("%s is not a supported business case", bcSelector)
+	}
+
+	if err != nil {
+		logger.Error().Err(err).Msgf("error occured when running integration")
 	}
 
 	logger.Info().Msg("done")
 }
 
-func bcWaterQualityObserved(ctx context.Context, cb application.ContextBrokerClient, logger zerolog.Logger, contextBrokerUrl string, conn pgx.Conn) error {
-	beaches, err := cb.GetBeaches(ctx)
+func bcWaterQualityObserved(ctx context.Context, contextBrokerUrl, maxDistance string, conn pgx.Conn) error {
+	logger := logging.GetFromContext(ctx)
+
+	beaches, err := cip.GetBeachesWithTemp(ctx, contextBrokerUrl, maxDistance)
 	if err != nil {
-		logger.Fatal().Err(err).Msg("unable to fetch beaches")
+		return err
 	}
 
-	logger.Info().Msgf("fetched %d beaches from %s", len(beaches), contextBrokerUrl)
-
 	for _, b := range beaches {
-		if temp, ok := b.GetLatestTemperature(ctx); ok {
+		if temp, ok := models.CalcLastTemperatureObserved(b); ok {
 			err = conn.BeginFunc(ctx, func(tx pgx.Tx) error {
-				//dateStr, timeStr := ToSwedishDateAndTime(temp.DateObserved)
-
-				update := fmt.Sprintf("update geodata_cip.beaches set \"temperature\"='%0.1f', \"timestampObservered\"='%s', \"temperatureSource\"='%s' where \"serviceGuideId\"='%s'", temp.Value, temp.DateObserved.Format(time.RFC3339), temp.Source, b.Source)
-				_, err = tx.Exec(ctx, update)
+				var n int
+				err = conn.QueryRow(ctx, "select count(*) as n from geodata_cip.beaches where serviceGuideId=$1", b.Source).Scan(&n)
 				if err != nil {
 					return err
 				}
 
-				logger.Info().Msgf("updated temperature value for %s (%s)", b.Name, b.Source)
+				if n == 0 {
+					lat, lon := b.AsPoint()
+					_, err = tx.Exec(ctx, `insert into geodata_cip.beaches(serviceGuideId,name,serviceTypes,webPage,visitingAddress,temperature,timestampObservered,temperatureSource,geom) 
+										   values($1,$2,$3,$4,$5,$6,$7,$8,ST_MakePoint($9,$10)`, b.Source, b.Name, "", "", "", temp.Value, temp.DateObserved.Format(time.RFC3339), temp.Source, lat, lon)
+					if err != nil {
+						return err
+					}
+					logger.Debug().Msgf("added temperature value for %s (%s)", b.Name, b.Source)
+					return nil
+				}
+
+				_, err = tx.Exec(ctx, "update geodata_cip.beaches set temperature=$1, timestampObservered=$2, temperatureSource=$3 where serviceGuideId=$4", temp.Value, temp.DateObserved.Format(time.RFC3339), temp.Source, b.Source)
+				if err != nil {
+					return err
+				}
+
+				logger.Debug().Msgf("updated temperature value for %s (%s)", b.Name, b.Source)
 
 				return nil
 			})
 			if err != nil {
-				logger.Error().Err(err).Msg("unable to update table")
+				logger.Error().Err(err).Msg("faild to add or update data")
 			}
 		} else {
-			logger.Warn().Msgf("no valid temperature value found for %s (%s)", b.Name, b.Source)
+			logger.Debug().Msgf("no valid temperature value found for %s (%s)", b.Name, b.Source)
 		}
 	}
 
 	return err
 }
 
-func bcGreenspaceRecord(ctx context.Context, cb application.ContextBrokerClient, logger zerolog.Logger, contextBrokerUrl string, conn pgx.Conn) error {
-	greenspaces, err := cb.GetGreenspaceRecords(ctx)
+func bcGreenspaceRecord(ctx context.Context, contextBrokerUrl string, conn pgx.Conn) error {
+	logger := logging.GetFromContext(ctx)
+
+	greenspaces, err := cip.GetGreenspaceRecords(ctx, contextBrokerUrl)
 	if err != nil {
 		logger.Error().Err(err).Msg("no greenspacerecords fetched")
 		return nil
@@ -129,9 +146,7 @@ var months []string = []string{
 
 func ToSwedishDateAndTime(t time.Time) (string, string) {
 	cest := t.Add(2 * time.Hour)
-
 	dateStr := fmt.Sprintf("%d %s %d", cest.Day(), months[cest.Month()-1], cest.Year())
-
 	return dateStr, cest.Format("15.04")
 }
 

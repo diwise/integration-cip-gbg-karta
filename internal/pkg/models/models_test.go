@@ -1,4 +1,4 @@
-package domain
+package models
 
 import (
 	"encoding/json"
@@ -26,9 +26,9 @@ func TestWaterQualityObservedUnmarshal(t *testing.T) {
 	json.Unmarshal([]byte(wqoString), wqo)
 
 	is.Equal("urn:ngsi-ld:WaterQualityObserved:SE0A21480000000532:2022-06-27T17:00:00+02:00", wqo.Id)
-    is.Equal(18.8, wqo.Temp)
-    is.Equal("https://www.smhi.se/", wqo.Source)
-    is.True(wqo.Time() != time.Time{})
+	is.Equal(18.8, wqo.Temp)
+	is.Equal("https://www.smhi.se/", wqo.Source)
+	is.True(wqo.Time() != time.Time{})
 }
 
 const wqoString = `
