@@ -65,29 +65,28 @@ func bcWaterQualityObserved(ctx context.Context, contextBrokerUrl, maxDistance s
 		return err
 	}
 
-	for _, b := range beaches {
+	for i, b := range beaches {
 		if temp, ok := models.CalcLastTemperatureObserved(b); ok {
 			err = conn.BeginFunc(ctx, func(tx pgx.Tx) error {
 				var n int
-				err = conn.QueryRow(ctx, "select count(*) as n from geodata_cip.beaches where serviceGuideId=$1", b.Source).Scan(&n)
+				err = conn.QueryRow(ctx, "select count(*) as \"n\" from geodata_cip.beaches where \"serviceGuideId\"=$1", b.Source).Scan(&n)
 				if err != nil {
-					return err
+					return fmt.Errorf("could not count, %w", err)
 				}
 
 				if n == 0 {
 					lat, lon := b.AsPoint()
-					_, err = tx.Exec(ctx, `insert into geodata_cip.beaches(serviceGuideId,name,serviceTypes,webPage,visitingAddress,temperature,timestampObservered,temperatureSource,geom) 
-										   values($1,$2,$3,$4,$5,$6,$7,$8,ST_MakePoint($9,$10)`, b.Source, b.Name, "", "", "", temp.Value, temp.DateObserved.Format(time.RFC3339), temp.Source, lat, lon)
+					_, err = tx.Exec(ctx, "insert into geodata_cip.beaches(\"id\",\"serviceGuideId\",\"name\",\"serviceTypes\",\"webPage\",\"visitingAddress\",\"temperature\",\"timestampObservered\",\"temperatureSource\",\"geom\") values($1,$2,$3,$4,$5,$6,$7,$8,$9,ST_MakePoint($10,$11))", i, b.Source, b.Name, "", "", "", temp.Value, temp.DateObserved.Format(time.RFC3339), temp.Source, lat, lon)					
 					if err != nil {
-						return err
+						return fmt.Errorf("could not insert, %w", err)
 					}
 					logger.Debug().Msgf("added temperature value for %s (%s)", b.Name, b.Source)
 					return nil
 				}
 
-				_, err = tx.Exec(ctx, "update geodata_cip.beaches set temperature=$1, timestampObservered=$2, temperatureSource=$3 where serviceGuideId=$4", temp.Value, temp.DateObserved.Format(time.RFC3339), temp.Source, b.Source)
+				_, err = tx.Exec(ctx, "update geodata_cip.beaches set \"temperature\"=$1, \"timestampObservered\"=$2, \"temperatureSource\"=$3 where \"serviceGuideId\"=$4", temp.Value, temp.DateObserved.Format(time.RFC3339), temp.Source, b.Source)
 				if err != nil {
-					return err
+					return fmt.Errorf("could not update, %w", err)
 				}
 
 				logger.Debug().Msgf("updated temperature value for %s (%s)", b.Name, b.Source)
