@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/diwise/integration-cip-gbg-karta/internal/pkg/cip"
@@ -65,6 +66,15 @@ func bcWaterQualityObserved(ctx context.Context, contextBrokerUrl, maxDistance s
 		return err
 	}
 
+	getWebSite := func(strs []string) string {
+		for _, s := range strs {
+			if strings.HasPrefix(s, "https://goteborg.se/") {
+				return s
+			}
+		}
+		return ""
+	}
+
 	for i, b := range beaches {
 		if temp, ok := models.CalcLastTemperatureObserved(b); ok {
 			err = conn.BeginFunc(ctx, func(tx pgx.Tx) error {
@@ -76,7 +86,7 @@ func bcWaterQualityObserved(ctx context.Context, contextBrokerUrl, maxDistance s
 
 				if n == 0 {
 					lat, lon := b.AsPoint()
-					_, err = tx.Exec(ctx, "insert into geodata_cip.beaches(\"id\",\"serviceGuideId\",\"name\",\"serviceTypes\",\"webPage\",\"visitingAddress\",\"temperature\",\"timestampObservered\",\"temperatureSource\",\"geom\") values($1,$2,$3,$4,$5,$6,$7,$8,$9,ST_MakePoint($10,$11))", i, b.Source, b.Name, "", "", "", temp.Value, temp.DateObserved.Format(time.RFC3339), temp.Source, lat, lon)					
+					_, err = tx.Exec(ctx, "insert into geodata_cip.beaches(\"id\",\"serviceGuideId\",\"name\",\"serviceTypes\",\"webPage\",\"visitingAddress\",\"temperature\",\"timestampObservered\",\"temperatureSource\",\"geom\") values($1,$2,$3,$4,$5,$6,$7,$8,$9,ST_MakePoint($10,$11))", i, b.Source, b.Name, strings.Join(b.BeachType, ", "), getWebSite(b.SeeAlso), "", temp.Value, temp.DateObserved.Format(time.RFC3339), temp.Source, lat, lon)
 					if err != nil {
 						return fmt.Errorf("could not insert, %w", err)
 					}
@@ -84,7 +94,7 @@ func bcWaterQualityObserved(ctx context.Context, contextBrokerUrl, maxDistance s
 					return nil
 				}
 
-				_, err = tx.Exec(ctx, "update geodata_cip.beaches set \"temperature\"=$1, \"timestampObservered\"=$2, \"temperatureSource\"=$3 where \"serviceGuideId\"=$4", temp.Value, temp.DateObserved.Format(time.RFC3339), temp.Source, b.Source)
+				_, err = tx.Exec(ctx, "update geodata_cip.beaches set \"temperature\"=$1, \"timestampObservered\"=$2, \"temperatureSource\"=$3, \"name\"=$5, \"serviceTypes\"=$6, \"webPage\"=$7  where \"serviceGuideId\"=$4", temp.Value, temp.DateObserved.Format(time.RFC3339), temp.Source, b.Source, b.Name, strings.Join(b.BeachType, ", "), getWebSite(b.SeeAlso))
 				if err != nil {
 					return fmt.Errorf("could not update, %w", err)
 				}

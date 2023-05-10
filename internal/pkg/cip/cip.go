@@ -21,9 +21,14 @@ func GetBeaches(ctx context.Context, contextBrokerUrl string) ([]models.Beach, e
 	params.Add("type", "Beach")
 	params.Add("limit", "50")
 
-	beaches, err := queryEntities[models.Beach](ctx, contextBrokerUrl, params)
+	result, err := queryEntities[models.BeachRaw](ctx, contextBrokerUrl, params)
 	if err != nil {
 		return nil, err
+	}
+
+	var beaches []models.Beach
+	for _, b := range result {
+		beaches = append(beaches, b.ToModel())
 	}
 
 	return beaches, nil
@@ -90,7 +95,7 @@ func GetGreenspaceRecords(ctx context.Context, contextBrokerUrl string) ([]model
 	return r, err
 }
 
-func queryEntities[T models.Beach | models.GreenspaceRecord | models.WaterQualityObserved](ctx context.Context, contextBrokerUrl string, params url.Values) ([]T, error) {
+func queryEntities[T models.BeachRaw | models.GreenspaceRecord | models.WaterQualityObserved](ctx context.Context, contextBrokerUrl string, params url.Values) ([]T, error) {
 	var err error
 
 	params.Add("options", "keyValues")
