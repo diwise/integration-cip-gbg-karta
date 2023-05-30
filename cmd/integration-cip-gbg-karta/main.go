@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"strings"
@@ -75,42 +76,76 @@ func bcWaterQualityObserved(ctx context.Context, contextBrokerUrl, maxDistance s
 		return ""
 	}
 
-	for i, b := range beaches {
-		if temp, ok := models.CalcLastTemperatureObserved(b); ok {
-			err = conn.BeginFunc(ctx, func(tx pgx.Tx) error {
-				var n int
-				err = conn.QueryRow(ctx, "select count(*) as \"n\" from geodata_cip.beaches where \"serviceGuideId\"=$1", b.Source).Scan(&n)
-				if err != nil {
-					return fmt.Errorf("could not count, %w", err)
-				}
+	err = createBeachTableIfNotExists(ctx, conn)
+	if err != nil {
+		return err
+	}
 
-				if n == 0 {
-					lat, lon := b.AsPoint()
-					_, err = tx.Exec(ctx, "insert into geodata_cip.beaches(\"id\",\"serviceGuideId\",\"name\",\"serviceTypes\",\"webPage\",\"visitingAddress\",\"temperature\",\"timestampObservered\",\"temperatureSource\",\"geom\") values($1,$2,$3,$4,$5,$6,$7,$8,$9,ST_MakePoint($10,$11))", i, b.Source, b.Name, strings.Join(b.BeachType, ", "), getWebSite(b.SeeAlso), "", temp.Value, temp.DateObserved.Format(time.RFC3339), temp.Source, lat, lon)
-					if err != nil {
-						return fmt.Errorf("could not insert, %w", err)
-					}
-					logger.Debug().Msgf("added temperature value for %s (%s)", b.Name, b.Source)
-					return nil
-				}
+	errs := []error{}
 
-				_, err = tx.Exec(ctx, "update geodata_cip.beaches set \"temperature\"=$1, \"timestampObservered\"=$2, \"temperatureSource\"=$3, \"name\"=$5, \"serviceTypes\"=$6, \"webPage\"=$7  where \"serviceGuideId\"=$4", temp.Value, temp.DateObserved.Format(time.RFC3339), temp.Source, b.Source, b.Name, strings.Join(b.BeachType, ", "), getWebSite(b.SeeAlso))
-				if err != nil {
-					return fmt.Errorf("could not update, %w", err)
-				}
+	for _, b := range beaches {
+		log := logger.With().Str("source", b.Source).Logger().With().Str("name", b.Name).Logger()
 
-				logger.Debug().Msgf("updated temperature value for %s (%s)", b.Name, b.Source)
+		var n int
+		err = conn.QueryRow(ctx, "select count(*) as \"n\" from geodata_cip.beaches where \"serviceGuideId\"=$1", b.Source).Scan(&n)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("could not count, %w", err))
+			continue
+		}
 
-				return nil
-			})
+		if n == 0 {
+			lat, lon := b.AsPoint()
+			_, err = conn.Exec(ctx, "insert into geodata_cip.beaches(\"serviceGuideId\",\"name\",\"serviceTypes\",\"webPage\",\"geom\") values($1,$2,$3,$4,ST_MakePoint($5,$6))", b.Source, b.Name, strings.Join(b.BeachType, ", "), getWebSite(b.SeeAlso), lat, lon)
 			if err != nil {
-				logger.Error().Err(err).Msg("faild to add or update data")
+				errs = append(errs, fmt.Errorf("could not insert new beach, %w", err))
+				continue
 			}
+
+			log.Debug().Msg("new beach inserted")
+		}
+
+		if temp, ok := models.CalcLastTemperatureObserved(b); ok {
+			_, err = conn.Exec(ctx, "update geodata_cip.beaches set \"temperature\"=$1, \"timestampObservered\"=$2, \"temperatureSource\"=$3, \"name\"=$5, \"serviceTypes\"=$6, \"webPage\"=$7  where \"serviceGuideId\"=$4", temp.Value, temp.DateObserved.Format(time.RFC3339), temp.Source, b.Source, b.Name, strings.Join(b.BeachType, ", "), getWebSite(b.SeeAlso))
+			if err != nil {
+				errs = append(errs, fmt.Errorf("could not update temperature, %w", err))
+				continue
+			}
+
+			log.Debug().Msg("temperature updated")
 		} else {
-			logger.Debug().Msgf("no valid temperature value found for %s (%s)", b.Name, b.Source)
+			_, err = conn.Exec(ctx, "update geodata_cip.beaches set \"temperature\"=null, \"timestampObservered\"=null, \"temperatureSource\"=null where \"serviceGuideId\"=$1", b.Source)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("could not set temperatures to NULL, %w", err))
+				continue
+			}
+
+			log.Debug().Msgf("cleared temperatures since no valid temperatures was found")
 		}
 	}
 
+	return errors.Join(errs...)
+}
+
+func createBeachTableIfNotExists(ctx context.Context, conn pgx.Conn) error {
+	_, err := conn.Exec(ctx, `
+		CREATE SCHEMA IF NOT EXISTS geodata_cip;
+		
+		CREATE TABLE IF NOT EXISTS geodata_cip.beaches
+		(
+			"id" SERIAL,
+			"serviceGuideId" text COLLATE pg_catalog."default",
+			"name" text COLLATE pg_catalog."default",
+			"serviceTypes" text COLLATE pg_catalog."default",
+			"webPage" text COLLATE pg_catalog."default",
+			"visitingAddress" text COLLATE pg_catalog."default",
+			"temperature" numeric,
+			"timestampObservered" timestamp,
+			"temperatureSource" text COLLATE pg_catalog."default",
+			"geom" geometry(Geometry,3007),
+			CONSTRAINT beaches_pkey PRIMARY KEY ("id")
+		);
+
+		CREATE UNIQUE INDEX IF NOT EXISTS beaches_sgid_idx ON geodata_cip.beaches ("serviceGuideId");`)
 	return err
 }
 
@@ -158,20 +193,3 @@ func ToSwedishDateAndTime(t time.Time) (string, string) {
 	dateStr := fmt.Sprintf("%d %s %d", cest.Day(), months[cest.Month()-1], cest.Year())
 	return dateStr, cest.Format("15.04")
 }
-
-/*
-CREATE TABLE geodata_cip.beaches
-(
-"id" integer NOT NULL,
-"serviceGuideId" text COLLATE pg_catalog."default",
-"name" text COLLATE pg_catalog."default",
-"serviceTypes" text COLLATE pg_catalog."default",
-"webPage" text COLLATE pg_catalog."default",
-"visitingAddress" text COLLATE pg_catalog."default",
-"temperature" numeric,
-"timestampObservered" timestamp,
-"temperatureSource" text COLLATE pg_catalog."default",
-"geom" geometry(Geometry,3007),
-CONSTRAINT beaches_pkey PRIMARY KEY ("id")
-)
-*/

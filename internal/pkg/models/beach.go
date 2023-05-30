@@ -38,17 +38,17 @@ type BeachRaw struct {
 
 func (br BeachRaw) ToModel() Beach {
 	return Beach{
-		Id: br.Id,
-		AreaServed: br.AreaServed,
-		BeachType: rawToStrings(br.BeachType),
-		BusinessId: br.BusinessId,
-		DataProvider: br.DataProvider,
-		Description: br.Description,
-		Location: br.Location,
-		Name: br.Name,
-		SeeAlso: rawToStrings(br.SeeAlso),
-		Source: br.Source,
-		Type: br.Type,
+		Id:                   br.Id,
+		AreaServed:           br.AreaServed,
+		BeachType:            rawToStrings(br.BeachType),
+		BusinessId:           br.BusinessId,
+		DataProvider:         br.DataProvider,
+		Description:          br.Description,
+		Location:             br.Location,
+		Name:                 br.Name,
+		SeeAlso:              rawToStrings(br.SeeAlso),
+		Source:               br.Source,
+		Type:                 br.Type,
 		WaterQualityObserved: br.WaterQualityObserved,
 	}
 }

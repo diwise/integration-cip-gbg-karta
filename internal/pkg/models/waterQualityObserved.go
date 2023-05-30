@@ -23,11 +23,11 @@ func (w WaterQualityObserved) Time() time.Time {
 }
 
 func (w WaterQualityObserved) IsCopernicus() bool {
-	return strings.HasPrefix(w.Source, "https://www.smhi.se")
+	return strings.Contains(strings.ToLower(w.Source), "smhi")
 }
 
 func (w WaterQualityObserved) IsSampleTemp() bool {
-	return strings.HasPrefix(w.Source, "https://badplatsen.havochvatten.se")
+	return strings.Contains(strings.ToLower(w.Source), "havochvatten")
 }
 
 func (w WaterQualityObserved) IsSensor() bool {

@@ -17,6 +17,7 @@ services:
       - mongodb
     ports:
       - '8082:1026'
+  
   timescale:
     image: timescaledev/timescaledb-ha:pg14-multi-all
     restart: always
@@ -49,23 +50,6 @@ services:
     command: --nojournal --quiet
     volumes:
       - mongo-db:/data
-
-  mongo-express:
-    image: mongo-express
-    restart: always
-    environment:
-      ME_CONFIG_MONGODB_SERVER: 'mongodb'
-      ME_CONFIG_MONGODB_PORT: 27017
-      ME_CONFIG_MONGODB_ENABLE_ADMIN: 'true'
-      ME_CONFIG_MONGODB_AUTH_DATABASE: 'admin'
-      ME_CONFIG_MONGODB_ADMINUSERNAME: 'admin'
-      ME_CONFIG_MONGODB_ADMINPASSWORD: 'password'
-      ME_CONFIG_BASICAUTH_USERNAME: ''
-    depends_on:
-      orion-ld:
-        condition: service_healthy
-    ports:
-      - '8183:8081'
 
   postgresqls:
     container_name: "postgresqlpostgis"
