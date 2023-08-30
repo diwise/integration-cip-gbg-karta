@@ -141,7 +141,7 @@ func createBeachTableIfNotExists(ctx context.Context, conn pgx.Conn) error {
 			"temperature" numeric,
 			"timestampObservered" timestamp,
 			"temperatureSource" text COLLATE pg_catalog."default",
-			"geom" geometry(Geometry,3007),
+			"geom" geometry(Geometry,4326),
 			CONSTRAINT beaches_pkey PRIMARY KEY ("id")
 		);
 
