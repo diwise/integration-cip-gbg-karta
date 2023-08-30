@@ -1,4 +1,4 @@
-FROM golang:1.20 AS builder
+FROM diwise.io/golang:1.20 AS builder
 
 # Set the Current Working Directory inside the container
 WORKDIR /app
@@ -16,7 +16,7 @@ WORKDIR /app/cmd/integration-cip-gbg-karta
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build
 
-FROM registry.access.redhat.com/ubi8/ubi-minimal
+FROM registry.access.redhat.com/ubi9/ubi-minimal
 WORKDIR /opt/diwise
 
 LABEL org.opencontainers.image.source = "https://github.com/diwise/integration-cip-gbg-karta"
