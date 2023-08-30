@@ -1,4 +1,4 @@
-FROM diwise.io/golang:1.20 AS builder
+FROM docker.io/golang:1.21 AS builder
 
 # Set the Current Working Directory inside the container
 WORKDIR /app
